@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Union
 
 import openai as openai
 from fastapi import FastAPI, Form
@@ -7,9 +7,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.requests import Request
 
+from config import Settings
+
+settings = Settings()
+
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
 
 templates = Jinja2Templates(directory="templates")
 
@@ -20,13 +23,14 @@ async def root(request: Request):
 
 
 @app.post("/")
-async def root(animal: Annotated[str, Form()]):
+async def root(request: Request, animal: Annotated[str, Form()]):
+    openai.api_key = settings.openai_api_key
     response = openai.Completion.create(
             model="text-davinci-003",
             prompt=generate_prompt(animal),
             temperature=0.6,
     )
-    return RedirectResponse(app.url_path_for("index", result=response.choices[0].text))
+    return templates.TemplateResponse("index.html", {"request": request, "result": response.choices[0].text})
 
 
 def generate_prompt(animal):
